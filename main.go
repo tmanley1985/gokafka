@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -62,6 +63,30 @@ func (s *Server) Listen() error {
 
 func (s *Server) handleConn(conn net.Conn) {
 	fmt.Println("Started new connection", conn.RemoteAddr())
+
+	buf := make([]byte, 1024)
+
+	for {
+
+		numOfBytesRead, err := conn.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+
+			slog.Error("connection read error", "err", err)
+			return
+		}
+
+		fmt.Println(string(buf[:numOfBytesRead]))
+
+		msg := buf[:numOfBytesRead]
+
+		key := binary.BigEndian.Uint16(msg[:2])
+
+		fmt.Println(key)
+	}
 }
 
 func main() {
