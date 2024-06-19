@@ -32,6 +32,7 @@ func readAPIVersion(r io.ByteReader) APIVersion {
 	size, _ := binary.ReadUvarint(r)
 	fmt.Println(size)
 	
+	return version
 }
 
 type Message struct {
