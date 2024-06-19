@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -11,6 +12,27 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
+
+type Header struct {
+	Size 		int32
+	APIKey 		int16
+	APIVersion	int16
+}
+
+type APIVersion struct {
+	CorrelationId			int32
+	ClientSoftwareName		[]byte
+	ClientSoftwareVersion	[]byte
+}
+
+func readAPIVersion(r io.ByteReader) APIVersion {
+
+	var version APIVersion
+	binary.Read(r.(io.Reader), binary.BigEndian, &version.CorrelationId)
+	size, _ := binary.ReadUvarint(r)
+	fmt.Println(size)
+	
+}
 
 type Message struct {
 	data []byte
@@ -83,9 +105,16 @@ func (s *Server) handleConn(conn net.Conn) {
 
 		msg := buf[:numOfBytesRead]
 
-		key := binary.BigEndian.Uint16(msg[:2])
+		fmt.Println(msg)
+		r := bytes.NewReader(msg)
 
-		fmt.Println(key)
+		var header Header
+
+		binary.Read(r, binary.BigEndian, &header)
+
+		fmt.Println(header)
+
+		readAPIVersion(r)
 	}
 }
 
