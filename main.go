@@ -25,15 +25,30 @@ type APIVersion struct {
 	ClientSoftwareVersion	[]byte
 }
 
-func readAPIVersion(r io.ByteReader) APIVersion {
+func readAPIVersion(r io.Reader) APIVersion {
 
 	var version APIVersion
-	binary.Read(r.(io.Reader), binary.BigEndian, &version.CorrelationId)
-	size, _ := binary.ReadUvarint(r)
-	fmt.Println(size)
+	binary.Read(r, binary.BigEndian, &version.CorrelationId)
 	
+	// I think you're actually supposed to get this as a varint.
+	var size int16
+
+	binary.Read(r, binary.BigEndian, &size)
+	version.ClientSoftwareName = make([]byte, size)
+	binary.Read(r, binary.BigEndian, &version.ClientSoftwareName)
+
+	binary.Read(r, binary.BigEndian, &size)
+	version.ClientSoftwareVersion = make([]byte, size)
+	binary.Read(r, binary.BigEndian, &version.ClientSoftwareVersion)
+
+	fmt.Println("Software name: ", string(version.ClientSoftwareName))
+	fmt.Println("Software version: ", string(version.ClientSoftwareVersion))
+
+	fmt.Println("####################$##############")
 	return version
 }
+
+
 
 type Message struct {
 	data []byte
@@ -113,7 +128,10 @@ func (s *Server) handleConn(conn net.Conn) {
 
 		binary.Read(r, binary.BigEndian, &header)
 
-		fmt.Println(header)
+		fmt.Println("Header is: ")
+		fmt.Println(header.APIKey)
+		fmt.Println(header.APIVersion)
+		fmt.Println("&&&&&&&&&&&&&&&&&&&&&#&&&&&&")
 
 		readAPIVersion(r)
 	}
