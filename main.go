@@ -21,8 +21,9 @@ type Header struct {
 
 type APIVersion struct {
 	CorrelationId			int32
-	ClientSoftwareName		[]byte
-	ClientSoftwareVersion	[]byte
+	ClientID				string
+	ClientSoftwareName		string
+	ClientSoftwareVersion	string
 }
 
 func readAPIVersion(r io.Reader) APIVersion {
@@ -34,18 +35,24 @@ func readAPIVersion(r io.Reader) APIVersion {
 	var size int16
 
 	binary.Read(r, binary.BigEndian, &size)
-	version.ClientSoftwareName = make([]byte, size)
-	binary.Read(r, binary.BigEndian, &version.ClientSoftwareName)
+	clientId := make([]byte, size)
+	binary.Read(r, binary.BigEndian, &clientId)
 
 	binary.Read(r, binary.BigEndian, &size)
-	version.ClientSoftwareVersion = make([]byte, size)
-	binary.Read(r, binary.BigEndian, &version.ClientSoftwareVersion)
+	clientSoftwareName := make([]byte, size)
+	binary.Read(r, binary.BigEndian, &clientSoftwareName)
 
-	fmt.Println("Software name: ", string(version.ClientSoftwareName))
-	fmt.Println("Software version: ", string(version.ClientSoftwareVersion))
+	clientSoftwareVersion, _ := io.ReadAll(r)
+
+	fmt.Println("Software name: ", string(clientSoftwareName))
+	fmt.Println("Software version: ", string(clientSoftwareVersion))
 
 	fmt.Println("####################$##############")
-	return version
+	return APIVersion{
+		ClientID: string(clientId),
+		ClientSoftwareName: string(clientSoftwareName),
+		ClientSoftwareVersion: string(clientSoftwareVersion),
+	}
 }
 
 
@@ -133,7 +140,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		fmt.Println(header.APIVersion)
 		fmt.Println("&&&&&&&&&&&&&&&&&&&&&#&&&&&&")
 
-		readAPIVersion(r)
+		request := readAPIVersion(r)
+
+		fmt.Println(request)
 	}
 }
 
