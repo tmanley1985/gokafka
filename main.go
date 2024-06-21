@@ -13,6 +13,10 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
+const (
+	APIKeyAPIVersions = 18
+)
+
 type Header struct {
 	Size 		int32
 	APIKey 		int16
@@ -24,6 +28,47 @@ type APIVersion struct {
 	ClientID				string
 	ClientSoftwareName		string
 	ClientSoftwareVersion	string
+}
+
+type ApiVersion struct {
+	APIKey		int16
+	MinVersion	int16
+	MaxVersion	int16
+}
+
+type APIVersionsResponse struct {
+	ErrorCode 		int16
+	APIVersions 	[]ApiVersion
+	ThrottleTimeMs 	int32
+}
+
+
+func (avr APIVersionsResponse) Encode(w io.Writer) error {
+
+	buf := &bytes.Buffer{}
+	// We need to allocate 4 bytes for the size.
+	binary.Write(buf, binary.BigEndian, int32(0))
+	binary.Write(buf, binary.BigEndian, avr.ErrorCode)
+	// We want to write the length of the api versions slice so the client knows
+	// how many bits to grab.
+	binary.Write(buf, binary.BigEndian, int32(len(avr.APIVersions)))
+
+	for _, version := range avr.APIVersions {
+		binary.Write(buf, binary.BigEndian, version.APIKey)
+		binary.Write(buf, binary.BigEndian, version.MinVersion)
+		binary.Write(buf, binary.BigEndian, version.MaxVersion)
+	}
+
+	binary.Write(buf, binary.BigEndian, avr.ThrottleTimeMs)
+	// Here we're going to put the final size of the buffer into that first slot.
+	// We have to subtract 4 because added an int32 (4 bytes) to the beginning of the buffer
+	// for the size! So if we added those bytes at the beginning, we don't need to reinclude them.
+	binary.BigEndian.PutUint32(buf.Bytes(), uint32(buf.Len() - 4))
+
+	fmt.Println("BUFFER: VVVVVVVVVV")
+	fmt.Println(buf)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 func readAPIVersion(r io.Reader) APIVersion {
@@ -132,17 +177,30 @@ func (s *Server) handleConn(conn net.Conn) {
 		r := bytes.NewReader(msg)
 
 		var header Header
-
 		binary.Read(r, binary.BigEndian, &header)
 
-		fmt.Println("Header is: ")
-		fmt.Println(header.APIKey)
-		fmt.Println(header.APIVersion)
-		fmt.Println("&&&&&&&&&&&&&&&&&&&&&#&&&&&&")
+		switch header.APIKey {
+		case APIKeyAPIVersions:
+			version := readAPIVersion(r)
+			fmt.Println(version)
+			
+			resp := APIVersionsResponse{
+				ErrorCode: 0,
+				APIVersions: []ApiVersion{
+					{
+						APIKey: 0,
+						MinVersion: 0,
+						MaxVersion: 0,
+					},
+				},
+				ThrottleTimeMs: 10,
+			}
 
-		request := readAPIVersion(r)
+			resp.Encode(conn)
+		default:
+			fmt.Println("Unhanded message from client: ", header.APIKey)
+		}
 
-		fmt.Println(request)
 	}
 }
 
